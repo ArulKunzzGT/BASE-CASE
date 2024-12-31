@@ -6,3 +6,5 @@ global.owner = ["6283136394680"]; // UBAH NOMOR YANG MAU DI JADIKAN OWNER
 // PEMISAH \\
 global.sessionName = "session";
 global.prefa = ["", "!", ".", "🐦", "🐤", "🗿"];
+global.email = "arulramadandev@gmail.com"
+global.passwordmail = "uwev fmxs ugst doar"
