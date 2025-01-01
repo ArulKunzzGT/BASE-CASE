@@ -88,7 +88,7 @@ async function Botstarted() {
     console.log(`using WA v${version.join(".")}, isLatest: ${isLatest}`);
     console.log(
     color(
-    figlet.textSync("JER - OFC", {
+    figlet.textSync("ArulRamadan", {
     	font: "Standard",
     horizontalLayout: "default",
     vertivalLayout: "default",
@@ -97,6 +97,10 @@ async function Botstarted() {
     "yellow"
     )
     );
+
+	const fakelink = "stupide.my.id"
+	const _welcome = []
+	const _left = []
 
 const rul = WADefault({
 	logger: pino({ level: 'silent' }),

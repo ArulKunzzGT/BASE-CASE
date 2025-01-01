@@ -12,7 +12,7 @@
   "dependencies": {
     "@adiwajshing/baileys": "github:@whiskeysockets/baileys",
     "@adiwajshing/keyed-db": "^0.2.4",
-    "@bochilteam/scraper": "^2.0.0",
+    "@bochilteam/scraper": "5.0.1",
     "awesome-phonenumber": "^2.64.0",
     "chalk": "^4.1.2",
     "cheerio": "^1.0.0-rc.10",
