@@ -32,12 +32,13 @@ const FormData = require("form-data");
 const { fromBuffer } = require("file-type");
 const { fetchBuffer } = require("./lib/myfunc2");
 const fetch = require("node-fetch");
+const path = require("path");
 const { spawn, execSync } = require("child_process");
 const exec = util.promisify(require("child_process").exec);
 const fsx = require("fs-extra");
 
 const { smsg, fetchJson, getBuffer } = require("./lib/simple");
-const { downloadTikTokVideo } = require("./lib/tiktok");
+const { message } = require("./lib/message");
 
 function formatSize(bytes) {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
@@ -342,6 +343,7 @@ module.exports = rul = async (
           );
         }
         const verificationCode = generateVerificationCode();
+        reply(message.loading.wait);
         const emailSent = await sendVerificationEmail(
           emailToVerify,
           verificationCode
@@ -361,7 +363,7 @@ module.exports = rul = async (
           db[userIndex].verificationCode = verificationCode;
         } else {
           db.push({
-            user: "",
+            user: pushname,
             number: m.sender,
             email: emailToVerify,
             verify: false,
@@ -376,17 +378,15 @@ module.exports = rul = async (
       case "speed":
         const speedVerify = await checkVerification(m, reply);
         if (speedVerify) {
-          await reply(`Please Wait`);
+          await reply(message.loading.fetching);
           let rulSpeed;
           try {
-            // Menggunakan exec dengan cara yang benar menggunakan await
             rulSpeed = await exec("python3 speed.py --share --secure");
           } catch (e) {
             rulSpeed = e;
           } finally {
             let { stdout, stderr } = rulSpeed;
 
-            // Pastikan stdout dan stderr adalah string dan trim jika diperlukan
             stdout = stdout ? stdout.toString().trim() : "";
             stderr = stderr ? stderr.toString().trim() : "";
 
@@ -404,6 +404,7 @@ module.exports = rul = async (
         const serverVerify = await checkVerification(m, reply);
         if (serverVerify) {
           try {
+            await reply(message.loading.fetching);
             let response = await fetch("https://ip-json.vercel.app/");
             let json = await response.json();
             delete json.status;
@@ -439,23 +440,110 @@ module.exports = rul = async (
           }
         }
         break;
-      case tiktok:
-        const tiktokVerify = await checkVerification(m, reply);
-        if (tiktokVerify) {
-          try {
-            const url = args[0];
-            if (!url) {
-              reply("Harap berikan URL TikTok yang valid.");
-              return;
+      case "tiktok":
+        try {
+          const tiktokVerify = await checkVerification(m, reply);
+          if (tiktokVerify) {
+            const urlTikTok = args[0];
+            if (!urlTikTok) {
+              reply("❌ Harap masukkan URL TikTok yang valid.");
+              break;
+            }
+            await reply(message.loading.fetching);
+            const processTikTok = await fetch(
+              `https://beforelife.me/api/download/tiktokv3?url=${urlTikTok}&is_from_webapp=1&sender_device=pc&apikey=HC-1Aq1yZuxkpX5LND`
+            );
+            const resTikTok = await processTikTok.json();
+
+            if (
+              !resTikTok.status ||
+              !resTikTok.result ||
+              !resTikTok.result.videoUrl
+            ) {
+              reply(
+                "❌ Gagal mendapatkan data video TikTok. Pastikan URL valid."
+              );
+              break;
             }
 
-            await downloadTikTokVideo(url, reply);
-          } catch (error) {
-            console.error("Error code : tiktok", error);
-            reply("❌ Terjadi kesalahan saat memproses permintaan.");
+            // Ambil data dari JSON
+            const {
+              username,
+              nickname,
+              region,
+              commentCount,
+              shareCount,
+              downloadCount,
+              musicInfo,
+              title,
+              videoUrl,
+            } = resTikTok.result;
+
+            const caption = `✅ Berhasil memproses video TikTok!\n\n
+📛 Username: ${username || "Tidak Diketahui"}
+👤 Nickname: ${nickname || "Tidak Diketahui"}
+🌍 Region: ${region || "Tidak Diketahui"}
+💬 Komentar: ${commentCount || 0}
+🔁 Dibagikan: ${shareCount || 0}
+📥 Diunduh: ${downloadCount || 0}
+🎵 Musik: ${musicInfo?.title || "Tidak Diketahui"}
+📹 Judul Video: ${title || "Tidak Diketahui"}`;
+
+            try {
+              const filePath = path.join(
+                __dirname,
+                "media",
+                `${Date.now()}.mp4`
+              );
+              const writer = fs.createWriteStream(filePath);
+              const response = await axios({
+                url: videoUrl,
+                method: "GET",
+                responseType: "stream",
+              });
+
+              response.data.pipe(writer);
+
+              // Tunggu hingga file selesai diunduh
+              await new Promise((resolve, reject) => {
+                writer.on("finish", resolve);
+                writer.on("error", reject);
+              });
+
+              // Kirim video langsung dengan caption
+              await rul.sendMedia(m.chat, filePath, "", caption, m);
+
+              // Cek apakah file masih ada sebelum dihapus
+              if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath); // Hapus file setelah dikirim
+              } else {
+                console.warn(
+                  `File ${filePath} sudah tidak ada saat mencoba menghapus.`
+                );
+              }
+            } catch (error) {
+              console.error("Error saat mengunduh atau mengirim video:", error);
+              reply(
+                "❌ Terjadi kesalahan saat memproses permintaan. Pastikan URL TikTok valid dan coba lagi."
+              );
+            }
           }
+        } catch (error) {
+          console.error("Error code : tiktok", error);
+          reply("❌ Terjadi kesalahan internal. Silakan coba lagi nanti.");
         }
         break;
+      case "startrpg": {
+        try {
+          const startRpgVerification = await checkVerification(m, reply);
+          if (startRpgVerification) {
+            reply("RPG started");
+          }
+        } catch (error) {
+          console.log(e);
+        }
+      }
+      break;
 
       default:
         if (budy.startsWith(">")) {
